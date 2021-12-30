@@ -1,0 +1,1031 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://dongdongguang.github.io</id>
+    <title>嵩大大</title>
+    <updated>2022-07-05T08:03:03.957Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://dongdongguang.github.io"/>
+    <link rel="self" href="https://dongdongguang.github.io/atom.xml"/>
+    <subtitle>我是一个轮子，一直在转啊转，就起飞了</subtitle>
+    <logo>https://dongdongguang.github.io/images/avatar.png</logo>
+    <icon>https://dongdongguang.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2022, 嵩大大</rights>
+    <entry>
+        <title type="html"><![CDATA[docker-yml使用技巧]]></title>
+        <id>https://dongdongguang.github.io/post/docker-yml-shi-yong-ji-qiao/</id>
+        <link href="https://dongdongguang.github.io/post/docker-yml-shi-yong-ji-qiao/">
+        </link>
+        <updated>2022-07-05T07:36:28.000Z</updated>
+        <content type="html"><![CDATA[<p>基础</p>
+<p><strong>1、docker时区问题</strong></p>
+<pre><code>	• 1 运行时加参数
+docker run -e TZ=&quot;Asia/Shanghai&quot;
+	• 2 挂载时区文件
+docker run -v  /etc/localtime:/etc/localtime 
+	• 3 dockerfile文件
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp; echo 'Asia/Shanghai'&gt;/etc/timezone
+</code></pre>
+<p><strong>2、docker-compose时区问题-方法</strong></p>
+<pre><code>environment:
+- SET_CONTAINER_TIMEZONE=true
+- CONTAINER_TIMEZONE=Asia/Shanghai
+- TZ=Asia/Shanghai
+</code></pre>
+<p>yml部分设置推荐</p>
+<pre><code>    entrypoint: [&quot;/bin/bash&quot;,&quot;/startup.sh&quot;]
+    command: [&quot;bash&quot;]
+	# entrypoint 和 command 组合使用效果最好，但要切记都是以 exec 格式而不能有 shell 格式
+
+    stdin_open: true
+    tty: true
+    # 这两句相当于 docker run -it
+    
+    privileged: true
+    # docker run可以使用   --privileged
+    # 真正能赋予 root 权限，但只能在单机版本（version2）中使用
+	docker swarm移除了该参数
+
+	使用
+    cap_add:
+     - ALL
+	尝试（主要docker版本在20.10才行）
+</code></pre>
+<pre><code>
+ENTRYPOINT启动命令
+
+①、ENTRYPOINT(入口点)用于在容器启动时执行命令
+
+②、Dockerfile中只有最后一个ENTRYPOINT会被执行
+
+③、ENTRYPOINT[&quot;ps&quot;] #推荐使用Exec格式
+
+注：这句话的意思相当于执行系统中ps这个命令，ENTRYPOINT是一定会被运行的
+
+3、CMD默认命令(容器启动时执行)
+
+①、CMD用于設置默认执行的命令
+
+②、如Dockerfile中出现多个CMD，则只有最后一个被执行
+
+③、如容器启动时附加指令，则CMD被忽略
+
+④、CMD[&quot;ps&quot;,&quot;-ef&quot;] #推荐使用Exec格式命令
+
+注：这句话的意思相当于执行系统中ps -ef 两个命令，CMD命令不一定会执行，如果在容器启动的镜像后面添加命令的话，它会替代Dockerfile中的CMD命令，例如：docker run xbcai.com/docker_run ls 我们在镜像后面添加了ls命令，它会取代Dockerfile中的CMD
+
+
+
+在写Dockerfile时, ENTRYPOINT或者CMD命令会自动覆盖之前的ENTRYPOINT或者CMD命令.
+在docker镜像运行时, 用户也可以在命令指定具体命令, 覆盖在Dockerfile里的命令.
+
+
+CMD和ENTRYPOIONT的两种语法 exec和shell
+当使用shell表示法时, 命令行程序作为sh程序的子程序运行, docker用/bin/sh -c的语法调用.
+
+相当于exec /bin/sh -c
+
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[dockerfile使用技巧]]></title>
+        <id>https://dongdongguang.github.io/post/dockerfile-shi-yong-ji-qiao/</id>
+        <link href="https://dongdongguang.github.io/post/dockerfile-shi-yong-ji-qiao/">
+        </link>
+        <updated>2022-07-05T07:27:11.000Z</updated>
+        <content type="html"><![CDATA[<p>基础</p>
+<pre><code>ARG FROM_IMAGE=ubuntu:bionic
+FROM $FROM_IMAGE
+
+ENV TZ='Asia/Shanghai'
+# ENV TZ='Etc/UTC'
+
+RUN echo &quot;root:root&quot; | chpasswd \
+    &amp;&amp; ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
+    &amp;&amp; echo $TZ &gt; /etc/timezone 
+
+RUN sed -i s@/archive.ubuntu.com/@/mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list \
+    &amp;&amp; apt-get clean
+
+RUN apt-get update &amp;&amp; apt-get install  -y \
+    tzdata \
+    bash-completion \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+# 为pid0设置中文环境
+# ENV LANG=&quot;zh_CN.UTF-8&quot; \
+#     LANGUAGE=&quot;zh_CN:zh:en_US:en&quot; \
+#     LC_ALL=&quot;zh_CN.UTF-8&quot;
+# LANG=&quot;en_US.UTF-8&quot;
+ENV LANG=&quot;C.UTF-8&quot;
+
+RUN apt-get clean \
+    &amp;&amp; apt-get update \
+    # &amp;&amp; apt-get install -y language-pack-zh-hans \
+    # &amp;&amp; update-locale LANG=&quot;zh_CN.UTF-8&quot; LANGUAGE=&quot;zh_CN:zh:en_US:en&quot; LC_ALL=&quot;zh_CN.UTF-8&quot; \
+    ##不设置这个导致直接进容器中文，但是远程桌面显示还是英文
+
+    &amp;&amp; apt-get autoclean -y \
+    &amp;&amp; apt-get autoremove -y \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+# install ssh
+RUN apt-get update \
+    &amp;&amp; apt-get install openssh-server -y \
+    &amp;&amp; echo &quot;PermitRootLogin yes&quot; &gt; /etc/ssh/sshd_config \
+    &amp;&amp; apt autoremove -y \
+    &amp;&amp; apt autoclean -y \
+    &amp;&amp; apt autoremove -y \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+
+
+RUN apt-get update &amp;&amp; apt-get install  -y \
+    git \
+    vim \
+    make \
+    cmake \
+    gcc \
+    g++ \
+    python2.7 \
+    u-boot-tools \
+    libncurses5-dev \
+    unzip \
+    &amp;&amp; apt-get autoclean -y \
+    &amp;&amp; apt-get autoremove -y \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+RUN echo 'export LANG=&quot;C.UTF-8&quot;' &gt;&gt; /root/.bashrc \
+    &amp;&amp; echo 'cd /work' &gt;&gt; /root/.bashrc
+
+COPY ./startup.sh /etc
+
+ENV WORKDIR=&quot;/work&quot;
+WORKDIR $WORKDIR
+
+ENTRYPOINT [&quot;/bin/bash&quot;,&quot;/etc/startup.sh&quot;]
+</code></pre>
+<p>startup.sh</p>
+<pre><code>#!/bin/bash
+set -e
+# PID_SUB=$!
+OPT=$@
+
+service ssh start
+
+apt update &gt; /dev/null 2&gt;&amp;1 
+
+if [ -z &quot;${OPT}&quot; ]; then
+    # wait $PID_SUB
+    echo &quot;no command ,Executing bash&quot;
+    bash
+else
+    # unknown option ==&gt; call command
+    echo -e &quot;\n\n------------------ EXECUTE COMMAND ------------------&quot;
+    echo &quot;Executing command: '${OPT}'&quot;
+    ${OPT}
+    
+    # 多个命令可以通过command： source 脚本
+    # exec &quot;$@&quot;
+
+    echo &quot;start success , Executing bash&quot;
+    bash
+    echo &quot;end&quot;
+fi
+
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[cmake好用的模板]]></title>
+        <id>https://dongdongguang.github.io/post/cmake-hao-yong-de-mo-ban/</id>
+        <link href="https://dongdongguang.github.io/post/cmake-hao-yong-de-mo-ban/">
+        </link>
+        <updated>2022-07-05T07:20:40.000Z</updated>
+        <content type="html"><![CDATA[<p>基础学习看</p>
+<p>https://blog.csdn.net/whahu1989/article/details/82078563</p>
+<p>CMakeLists.txt使用交叉编译</p>
+<pre><code>#告知当前使用的是交叉编译方式，必须配置
+ SET(CMAKE_SYSTEM_NAME Linux)
+
+#指定编译工具，一定要设置
+#或交叉编译器使用绝对地址
+SET(CMAKE_C_COMPILER &quot;arm-linux-gcc&quot;)
+#指定C++交叉编译器
+SET(CMAKE_CXX_COMPILER &quot;arm-linux-g++&quot;)
+ 
+#不一定需要设置
+#指定交叉编译环境安装目录...
+SET(CMAKE_FIND_ROOT_PATH &quot;...&quot;)
+#从来不在指定目录下查找工具程序
+SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+#只在指定目录下查找库文件
+SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+#只在指定目录下查找头文件
+SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+ 
+</code></pre>
+<p>模板</p>
+<pre><code># cmake 版本
+cmake_minimum_required(VERSION 3.5.1)
+
+# inner variables
+## project name
+set(PROJECT_NAME hello)
+set(BINARY_NAME  hello)
+
+## include directories
+set(INCLUDE_DIRECTORIES
+    ./
+    ./inc
+)
+
+## link directories
+set(LINK_DIRECTORIES
+    ./
+)
+
+## link libraries
+set(LINK_LIBRARIES
+)
+
+## source files
+set(SOURCE_FILE
+    ./src/hello.cpp
+)
+
+## flags
+set(C_FLAGS            &quot;&quot;)
+set(C_FLAGS_DEBUG      &quot;-g&quot;)
+set(C_FLAGS_RELEASE    &quot;&quot;)
+set(CXX_FLAGS          &quot;&quot;)
+set(CXX_FLAGS_DEBUG    &quot;-g&quot;)
+set(CXX_FLAGS_RELEASE  &quot;&quot;)
+
+# output messages
+message(&quot;&gt;&gt; project name         : ${PROJECT_NAME}&quot;)
+message(&quot;&gt;&gt; CC                   : ${CMAKE_C_COMPILER}&quot;)
+message(&quot;&gt;&gt; CXX                  : ${CMAKE_CXX_COMPILER}&quot;)
+message(&quot;&gt;&gt; SYSROOT              : ${CMAKE_SYSROOT}&quot;)
+
+message(&quot;&gt;&gt; AP_DEVEL_LIBS        : ${CMAKE_AP_DEVEL_LIBS}&quot;)
+message(&quot;&gt;&gt; AP_DEVEL_PATH        : ${CMAKE_AP_DEVEL_PATH}&quot;)
+message(&quot;&gt;&gt; AP_MODEL_GEN_PATH    : ${CMAKE_BINARY_SRC_GEN_PATH}&quot;)
+
+message(&quot;&gt;&gt; include directories  : ${INCLUDE_DIRECTORIES}&quot;)
+message(&quot;&gt;&gt; link directories     : ${LINK_DIRECTORIES}&quot;)
+message(&quot;&gt;&gt; source files         : ${SOURCE_FILE}&quot;)
+message(&quot;&gt;&gt; link library         : ${LINK_LIBRARIES}&quot;)
+message(&quot;&quot;)
+
+# build
+set(CMAKE_C_FLAGS                &quot;${C_FLAGS}&quot;)
+set(CMAKE_C_FLAGS_DEBUG          &quot;${C_FLAGS_DEBUG}&quot;)
+set(CMAKE_C_FLAGS_RELEASE        &quot;${C_FLAGS_RELEASE}&quot;)
+set(CMAKE_CXX_FLAGS              &quot;${CXX_FLAGS}&quot;)
+set(CMAKE_CXX_FLAGS_DEBUG        &quot;${CXX_FLAGS_DEBUG}&quot;)
+set(CMAKE_CXX_FLAGS_RELEASE      &quot;${CXX_FLAGS_RELEASE}&quot;)
+
+project(${BINARY_NAME})
+
+include_directories(${INCLUDE_DIRECTORIES})
+link_directories(${LINK_DIRECTORIES})
+add_executable(${BINARY_NAME} ${SOURCE_FILE})
+target_link_libraries(${BINARY_NAME} ${LINK_LIBRARIES})
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[移植ssh]]></title>
+        <id>https://dongdongguang.github.io/post/yi-zhi-ssh/</id>
+        <link href="https://dongdongguang.github.io/post/yi-zhi-ssh/">
+        </link>
+        <updated>2022-07-05T05:54:27.000Z</updated>
+        <content type="html"><![CDATA[<h3 id="openssh源码地址">openssh源码地址</h3>
+<p>https://mirrors.aliyun.com/pub/OpenBSD/OpenSSH/portable/</p>
+<p>https://github.com/openssh/openssh-portable</p>
+<p>openssh依赖zlib和openssl</p>
+<h3 id="openssl">openssl</h3>
+<p>https://www.openssl.org/</p>
+<p>https://github.com/openssl/openssl</p>
+<h3 id="zlib">zlib</h3>
+<p>https://www.zlib.net/</p>
+<p>https://sourceforge.net/projects/libpng/files/zlib/1.2.11/</p>
+<p>开源编译器 aarch64-linux-gnu-gcc 步骤</p>
+<p><strong>编译安装****zlib</strong></p>
+<pre><code>export CC=aarch64-linux-gnu-gcc
+
+./configure --prefix=./_install
+
+make -j8
+
+make install 
+</code></pre>
+<p><strong>编译安装****openssl</strong></p>
+<p>1.配置</p>
+<pre><code>#export ARCH=arm64
+
+export CC=aarch64-linux-gnu-gcc
+
+./Configure linux-aarch64 --prefix=$(pwd)/_install
+
+# 注意查看这行输出你的平台信息，选择适合的 os/compiler: 
+
+# 比如我设置了 linux-aarch64 避免 “-m64”的错误
+
+ 
+
+make -j8
+
+make install
+</code></pre>
+<p><strong>编译****openssh</strong></p>
+<p>1.配置</p>
+<pre><code>export CC=aarch64-linux-gnu-gcc 
+# export AR=aarch64-linux-gnu-ar 
+
+
+./configure --host=aarch64-linux-gnu \
+--with-zlib=/work/module/zlib-1.2.11/_install \
+--with-ssl-dir=/work/module/openssl-openssl-3.0.2/_install \
+--disable-etc-default-login
+# --disable-etc-default-login
+
+**#** **表示不使用当前环境变量的编译器，所以后面配置参数时，最后直接配置 CC 和 AR 这两个编译器** 
+
+make
+</code></pre>
+<p>ssh编译完之后</p>
+<pre><code class="language-shell">mkdir fs
+
+cd fs
+
+mkdir usr/local/bin/ usr/local/ usr/local/etc/ usr/libexec/ usr/sbin/ -p
+
+cd ..
+
+cp scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan fs/usr/local/bin/
+
+cp moduli ssh_config sshd_config fs/usr/local/etc/
+
+cp sftp-server ssh-keysign fs/usr/libexec/
+
+cp sshd fs/usr/sbin/
+
+ 
+
+chmod 777 fs/usr/local/bin/*
+
+chmod 777 fs/usr/sbin/*
+</code></pre>
+<p><strong>#</strong> <strong>生成密钥文件</strong></p>
+<pre><code class="language-shell">ls ssh_host*
+
+ssh-keygen -t rsa -f ssh_host_rsa_key -N &quot;&quot;
+
+ssh-keygen -t dsa -f ssh_host_dsa_key -N &quot;&quot;
+
+ssh-keygen -t ecdsa -f ssh_host_ecdsa_key -N &quot;&quot;
+
+ssh-keygen -t dsa -f ssh_host_ed25519_key -N &quot;&quot;
+
+chmod 600 ssh_host_ed25519_key
+
+ls ssh_host*
+
+ 
+
+cp ssh_host_* fs/usr/local/etc/
+
+ 
+</code></pre>
+<p>tree fs</p>
+<figure data-type="image" tabindex="1"><img src="https://dongdongguang.github.io/post-images/1657001144779.png" alt="" loading="lazy"></figure>
+<p>修改ssh配置添加root登录和设置文件系统里的root账号密码</p>
+<p>#root用户密码root</p>
+<pre><code>echo &quot;root:x:0:0:root:/root:/bin/sh&quot; &gt; etc/passwd
+
+echo &quot;root:x:0:&quot; &gt; etc/group
+
+echo &quot;root:vC74reQekdglY:19093:0:99999:7:::&quot; &gt; etc/shadow
+
+ 
+</code></pre>
+<p>#sshd 工作目录</p>
+<pre><code>mkdir -p var/empty/sshd
+
+mkdir -p var/run
+
+ 
+
+sed -i 's/\#PermitRootLogin.*/PermitRootLogin yes/g' usr/local/etc/sshd_config
+
+echo &quot;sshd:x:74:74:Privilege-separated SSH:/var/empty/sshd:/sbin/nologin&quot; &gt;&gt; etc/passwd
+
+# 将sshd加入开机启动项
+
+echo &quot;/usr/sbin/sshd&quot; &gt;&gt; etc/init.d/rcS
+
+ 
+
+# 设置文件系统可读写
+
+# mount -rw -o remount /
+</code></pre>
+<p>添加软连接</p>
+<pre><code>cd /bin
+
+​    ln -sf ../usr/local/bin/scp
+
+​    ln -sf ../usr/local/bin/sftp
+
+​    ln -sf ../usr/local/bin/ssh
+
+​    ln -sf ../usr/local/bin/ssh-add
+
+​    ln -sf ../usr/local/bin/ssh-agent
+
+​    ln -sf ../usr/local/bin/ssh-keygen
+
+​    ln -sf ../usr/local/bin/ssh-keyscan
+ 
+# 一定记得将 zlib openssl 编译生成的lib库里的so复制到根文件系统的 lib 目录下
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[制作最小根文件系统]]></title>
+        <id>https://dongdongguang.github.io/post/zhi-zuo-zui-xiao-gen-wen-jian-xi-tong/</id>
+        <link href="https://dongdongguang.github.io/post/zhi-zuo-zui-xiao-gen-wen-jian-xi-tong/">
+        </link>
+        <updated>2022-07-05T02:23:11.000Z</updated>
+        <content type="html"><![CDATA[<h1 id="1-u-boot">1、u-boot</h1>
+<h3 id="第一步u-boot-代码下载">第一步：U-Boot 代码下载：</h3>
+<p>https://ftp.denx.de/pub/u-boot/<br>
+https://github.com/u-boot/u-boot/tags</p>
+<pre><code class="language-shell">git clone https://gitlab.denx.de/u-boot/u-boot.git
+
+# ls configs下能看到各种开发板的配置
+vexpress_ca9x4_defconfig
+
+# vexpress_ca9x4是 arm 公司的模拟开发板
+</code></pre>
+<h3 id="第二步编译arm">第二步：编译（arm）</h3>
+<pre><code class="language-shell">export ARCH=arm
+export CROSS_COMPILE=arm-linux-gnueabihf-
+make clean
+make vexpress_ca9x4_defconfig
+
+make -j8
+
+# 注：vexpress_ca9x4_defconfig 是armv7架构的主板配置
+
+</code></pre>
+<h2 id="aarch64-平台编译">（aarch64 平台编译）</h2>
+<pre><code class="language-shell"># 使用armv8的查看configs下面的其他配置。如 qemu_arm64_defconfig
+# export ARCH=aarch
+
+export CROSS_COMPILE=aarch64-linux-gnu-
+make qemu_arm64_defconfig
+make -j8
+
+
+# 最终编译生成 elf 格式的可执行文件 u-boot 和纯二进制文件u-boot.bin，其中 QEMU 可以启动的为 elf 格式的可执行文件 u-boot。
+
+
+
+# qemu验证 u-boot
+
+qemu-system-aarch64 \
+	-M virt -cpu cortex-a72 -m 1G -nographic \
+	-kernel u-boot
+
+=&gt; setenv ipaddr 10.0.2.15
+=&gt; setenv serverip 10.0.2.2
+=&gt; setenv netmask 255.255.0.0
+=&gt; save
+=&gt; ping 10.0.2.2
+Using virtio-net#32 device
+host 10.0.2.2 is alive
+
+
+</code></pre>
+<h1 id="2-linux内核">2、linux内核</h1>
+<p>源码  https://mirrors.edge.kernel.org/pub/linux/kernel/</p>
+<p><strong>1.下载并解压内核</strong></p>
+<p>内核下载官网：https://www.kernel.org/</p>
+<pre><code class="language-shell"># 可能缺少依赖
+
+apt-get install flex -y
+apt-get install bison -y
+
+ 
+
+# make报错可能缺少依赖
+
+apt install libelf-dev -y
+
+# 可能需要修改 .config文件（使用make x86_64_defconfig 即不需要修改.config文件）
+
+CONFIG_SYSTEM_TRUSTED_KEY=&quot;&quot; 
+
+CONFIG_SYSTEM_REVOCATION_KEYS=&quot;&quot;
+
+# 修改完需要make clean
+</code></pre>
+<h3 id="1指定硬件体系架构-x86平台">1.指定硬件体系架构。（x86平台）</h3>
+<p>为了减少安装编译器的过程，我在本例中使用的是x86，因为我的开发环境就是x86。如果你要编译arm的内核，则指定ARCH=arm且需要安装交叉编译器。</p>
+<pre><code>export ARCH=x86
+</code></pre>
+<p>2.配置board config,此处配置为 x86_64_defconfig。好了，我们点好菜了，菜单就是x86_64_defconfig</p>
+<pre><code>make x86_64_defconfig
+</code></pre>
+<p>3.配置内核</p>
+<p>这一步其实是对第2步的菜单进行微调，我们需要内核支持ramdisk驱动，所以需要选中如下配置：</p>
+<pre><code>General setup ---&gt;
+​    ----&gt; [*] Initial RAM filesystem and RAM disk (initramfs/initrd) support
+  Device Drivers ---&gt;
+​    [*] Block devices ---&gt;
+​        &lt;*&gt;  RAM block device support
+​        (65536) Default RAM disk size (kbytes)
+
+# 这里设置最大64M
+</code></pre>
+<p>4.编译内核</p>
+<pre><code>make
+
+# 编译成功后的内核位于：arch/x86_64/boot/bzImage
+</code></pre>
+<h3 id="模拟arrch64-编译步骤">（模拟arrch64 编译步骤）</h3>
+<pre><code class="language-shell">export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+make defconfig
+make menuconfig
+
+# 修改ramdisk大小
+
+make
+</code></pre>
+<h1 id="3-busybox制作最小rootfs">3、busybox制作最小rootfs</h1>
+<p>下载： https://busybox.net/</p>
+<h3 id="arm平台">（arm平台）</h3>
+<p>进入busybox-1.33.1目录以后，需要修改Makefile来指定编译工具链和开发板架构，在164行和190行附近有如下两行代码</p>
+<pre><code>1 CROSS_COMPILE ?= /home/moxa/linux/toolchain/gcc-linaro-4.9.4-2017.01-i686_arm-linux-gnueabi/bin/arm-linux-gnueabi-
+2 ARCH ?= arm
+</code></pre>
+<p>将CROSS_COMPILE指定为自己的编译工具链（这里最好使用与编译linux kernel一样的工具链，以免造成未知麻烦），将ARCH指定为 arm（根据开发版）</p>
+<p>x86平台可能少库</p>
+<pre><code>sudo apt-get install libncurses5-dev 
+</code></pre>
+<p>步骤（aarch64平台）</p>
+<pre><code>export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+make defconfig #生成默认配置，再执行
+
+make menuconfig
+</code></pre>
+<pre><code>Settings ---&gt;
+
+--- Build Options 
+
+[*] Build static binary (no shared libs)
+</code></pre>
+<p>build static binary需要选中，这样才能把BusyBox编译成静态链接的可执行文件，后续就不再需要将其他动态库加入到rootfs，达到rootfs体积最小的目的</p>
+<p>然后保存退出，执行</p>
+<pre><code>make -j8
+make install
+</code></pre>
+<p>busybox-1.33.1目录下就会生成_install文件夹，即为rootfs。可以看到_install文件夹一共1.6M</p>
+<pre><code>1 moxa@moxa-ThinkPad-X240:~/linux/github/busybox-1.33.1$ du -h _install/
+ 2 1.5M  _install/bin
+ 3 4.0K  _install/usr/bin
+ 4 4.0K  _install/usr/sbin
+ 5 12K   _install/usr
+ 6 4.0K  _install/sbin
+ 7 1.6M  _install/
+</code></pre>
+<p>接下来继续制作完成rootfs，进入到_install文件夹</p>
+<p>执行如下命令，创建必要的文件和文件夹</p>
+<p>mkdir dev etc home lib mnt proc root sys tmp var -p</p>
+<p>创建文件 ，内容如下</p>
+<pre><code>vim etc/inittab
+
+::sysinit:/etc/init.d/rcS
+::respawn:-/bin/sh
+::askfirst:-/bin/sh
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/swapoff -a
+</code></pre>
+<pre><code># 开机免登录进shell
+
+::sysinit:/etc/init.d/rcS
+console::askfirst:-/bin/sh
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+
+::shutdown:/sbin/swapoff -a
+</code></pre>
+<pre><code># 开机要登录
+
+::sysinit:/etc/init.d/rcS
+::respawn:-/bin/login
+</code></pre>
+<p>命令解释</p>
+<pre><code>  respawn——当后面的process进程结束时，该进程又会被重启。
+
+  askfirst——这个类似于上面的respawn，但是在运行process之前，它会打印&quot;Please press Enter to activate this console.&quot;，然后等待用户按下Enter来启动该 process。通常askfirst是用于启动终端设备的，如果不想看到这个提示，就像我那样使用respawn，而非askfirst.
+
+  once——process只会执行一次。在上面的例子中，执行telnetd守护进程，-l参数表示连接时，使用login登录。同时执行login程序。
+
+  restart——重新启动init进程时执行process.
+
+  ctrlaltdel——当Ctrl+Alt+Del三个键同时按下后，init进程就会收到SIGINT信号，此时运行process。
+
+  shutdown——在系统关机的时候执行process。在上面的例子中，在关机时卸载了所有已挂载的设备。
+
+ 
+</code></pre>
+<pre><code class="language-shell"># 创建文件夹 
+
+mkdir etc/init.d/ -p
+
+# 创建文件，内容如下
+
+vim etc/init.d/rcS
+
+#!/bin/sh
+
+# This is the first script called by init process
+
+echo -e &quot;system booting&quot;
+
+/bin/mount -a
+echo /sbin/mdev&gt;/proc/sys/kernel/hotplug
+mdev -s 
+
+# +权限 
+chmod 777 etc/init.d/rcS
+</code></pre>
+<p>创建文件,内容如下：</p>
+<pre><code>vim etc/fstab
+
+#device   mount-point   type     options    dump   fsck order
+ proc    /proc      proc     defaults    0    0
+ tmpfs    /tmp      tmpfs    defaults    0    0
+ sysfs    /sys      sysfs    defaults    0    0
+ tmpfs    /dev      tmpfs    defaults    0    0
+</code></pre>
+<p>创建文件, 内容如下</p>
+<pre><code class="language-shell">vim etc/profile
+
+#!/bin/sh
+ export PS1=&quot;[\u@\h:\w]\# &quot;
+ PATH=/bin:/sbin:/usr/bin:/usr/sbin
+ LD_LIBRARY_PATH=/lib:/usr/lib:$LD_LIBRARY_PATH
+ export PATH LD_LIBRARY_PATH 
+
+echo -e &quot;welcome&quot;
+
+# mknod dev/console c 5 1  #该文件节点是必须的
+
+# mknod dev/null c 1 3
+</code></pre>
+<p>至此，我们最小的rootfs就完成了，_install即为完成的最小rootfs</p>
+<p>有些变量默认值</p>
+<pre><code>USER=&quot;`id -un`&quot;
+
+LOGNAME=$USER
+
+HOSTNAME='/bin/hostname'
+</code></pre>
+<p>#######配置网络################################</p>
+<pre><code>/sbin/ifconfig lo 127.0.0.1 netmask 255.0.0.0
+
+/sbin/ifconfig eth0 192.168.1.70
+
+/sbin/ifconfig eth0 netmask 255.255.255.0
+
+/sbin/route add default gw 192.168.1.1 eth0
+</code></pre>
+<p>可执行程序记得复制 /lib /usr/lib下面的so到根文件系统</p>
+<h1 id="4-rootfs制作成ramdisk">4、<strong>rootfs<strong><strong>制作成</strong></strong>ramdisk</strong></h1>
+<p><strong>rootfs<strong><strong>制作成</strong></strong>ramdisk<strong><strong>供</strong></strong>linux kernel<strong><strong>加载</strong></strong>~</strong></p>
+<p>创建一个目录my_rootfs（根据自己需要命名）,将最小rootfs目录放在这个目录下</p>
+<pre><code class="language-shell">## 以下命令都在my_rootfs下执行
+
+sudo dd if=/dev/zero of=ramdisk bs=1M count=200
+
+# 生成一个叫ramdisk的空文件，大小为8M
+
+sudo mkfs.ext4 -F ramdisk
+
+# 将其初始化为ext4文件系统格式
+
+sudo mkdir -p ./initrd
+sudo mount -t ext4 ramdisk ./initrd
+
+# 创建initrd文件夹，将ramdisk的文件系统挂载到initrd
+
+sudo cp rootfs/* ./initrd -raf
+
+# 将最小文件系统里面的所有文件拷贝到ramdisk文件系统
+
+sudo mknod initrd/dev/console c 5 1
+sudo mknod initrd/dev/null c 1 3
+
+# 创建必要的字符设备
+
+sudo umount ./initrd
+
+# 卸载文件系统
+
+sudo gzip --best -c ramdisk &gt; ramdisk.gz
+
+# 压缩并打包成ramdisk.gz
+
+sudo mkimage -n &quot;ramdisk&quot; -A arm -O linux -T ramdisk -C gzip -d ramdisk.gz ramdisk.img
+
+# 最后使用mkimage命令生成ramdisk.img即为我们需要的ramdisk文件系统。
+
+# mkimage使用需要安装工具
+
+apt install u-boot-tools -y
+ 
+</code></pre>
+<p>注：qemu可以加载磁盘文件</p>
+<h1 id="5-qemu验证系统">5、qemu验证系统</h1>
+<p>官方文档</p>
+<p>https://wiki.qemu.org/Documentation</p>
+<p>（x86_64平台）通过qemu模拟器启动我们自己编译的内核和文件系统（qemu能在docker里运行）：</p>
+<pre><code>apt install qemu -y
+
+# qemu-system-x86_64 \
+
+ -kernel ./linux-4.9.229/arch/x86_64/boot/bzImage \
+
+ -initrd ./busybox-1.30.0/rootfs.img.gz  \
+
+ -append &quot;root=/dev/ram init=/linuxrc&quot; \
+
+ -serial [file:output.txt](file://output.txt)
+
+ 
+</code></pre>
+<pre><code>qemu-system-x86_64 -kernel bzImage -initrd ramdisk -m 1024 -nographic -append &quot;console=ttyS0&quot;
+
+这样启动日志重定向到终端
+</code></pre>
+<p>（需要源码安装qemu）</p>
+<p>（aarch64平台启动）</p>
+<pre><code>/work/linux/qemu-7.0.0-rc2/build/qemu-system-aarch64 \
+
+-M virt -cpu cortex-a72 -m 1G -nographic \
+
+-kernel /work/linux/linux-5.17.1/arch/arm64/boot/Image -initrd ./ramdisk \
+
+-append &quot;root=/dev/ram0 ramdisk_size=65536&quot;
+
+# 最后一句可不要
+
+
+ps -ef|grep qemu|awk '{print $2}'|head -n 1 |xargs kill -9
+
+另起终端退出qemu
+
+ 
+# 解决文件系统权限问题，产生这个问题的原因是文件系统此时处于只读模式下，/etc/passwd和/etc/shadow不能被修改，运行下面的命令就可以解决这个问题
+
+# mount -rw -o remount /
+</code></pre>
+<pre><code>注：
+
+ mount 是挂载命令
+
+ -rw 是说指定的挂载文件是可读/写的
+
+ -o remount / 是说重新挂载根
+</code></pre>
+<p>测试ssh（针对ssh已经移植到文件系统的网络配置，ssh移植见下一节）</p>
+<pre><code>qemu-system-aarch64 \
+
+-M virt -cpu cortex-a72 -m 1G -nographic \
+
+-kernel Image \
+
+-initrd ramdisk \
+
+-device e1000,netdev=net0 \
+
+-netdev user,id=net0,hostfwd=tcp::5555-:22 \
+</code></pre>
+<p>此命令讲虚拟机的 22 端口映射到本机的 5555 虚拟机登录后需要设置ip才能登录</p>
+<p>最后仔细发现arm端内部ip需要设置为10.0.2.15.或者使用 dhcp 命令分配。为什么是这样，可以参考qemu的文档</p>
+<pre><code>ifconfig eth0 10.0.2.15
+ifconfig eth0 up
+
+# 连接到虚拟机
+
+ssh -p 5555 127.0.0.1 
+
+# 如果是在docker创建的虚拟机，外部想要访问虚拟机，需要再加一层映射，如：
+
+ssh -L 172.20.0.2:3944:127.0.0.1:3933 127.0.0.1
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[制作原本macos的iso镜像]]></title>
+        <id>https://dongdongguang.github.io/post/zhi-zuo-yuan-ben-macos-de-iso-jing-xiang/</id>
+        <link href="https://dongdongguang.github.io/post/zhi-zuo-yuan-ben-macos-de-iso-jing-xiang/">
+        </link>
+        <updated>2022-02-24T09:42:34.000Z</updated>
+        <content type="html"><![CDATA[<p>虚拟机体验苹果系统，需要使用iso或者cdr格式的镜像，可以网上找镜像或者自己有苹果系统制作一个原版纯净的镜像</p>
+<p>制作BigSur  - 步骤如下</p>
+<pre><code class="language-bash">#首先先用你的Mac 电脑下载最新macOS镜像，完成后不要安装
+#创建DMG磁盘文件，这里指定创建磁盘文件大小为13g，根据镜像大小自己指定，要比原有文件大才可
+
+hdiutil create -o /tmp/BigSur -size 13g -volname BigSur -layout SPUD -fs HFS+J
+
+#把它挂到你的MacOS上
+
+hdiutil attach /tmp/BigSur.dmg -noverify -mountpoint /Volumes/BigSur
+
+#创建MacOS BigSur安装程序
+
+sudo /Applications/Install\ macOS\ Big\ Sur.app/Contents/Resources/createinstallmedia --volume /Volumes/BigSur --nointeraction
+
+#卸载BigSur磁盘
+
+hdiutil detach /volumes/Install\ macOS\ Big\ Sur
+
+#将dmg文件转换为cdr文件
+
+hdiutil convert /tmp/BigSur.dmg -format UDTO -o ~/Desktop/BigSur.cdr
+</code></pre>
+<p>至此，可以将生成的BigSur.cdr镜像文件放到你的虚拟机里启动了</p>
+<p>对了，VMware需要先解锁macos支持</p>
+<p>步骤如下</p>
+<pre><code class="language-bash">amd的cpu安装macos
+环境vmware版本15.5，macos镜像版本11.5
+windows上先
+1、下载最新版 unlocker 3.0.3
+地址
+• https://github.com/paolo-projects/unlocker/releases
+
+
+2、新建完虚拟机之后找到“vmx配置文件”（用记事本打开。
+打开之后
+找到virtualHW.version = &quot;16&quot;，找到后修改为virtualHW.version = &quot;10&quot;
+末尾添加
+smc.version = &quot;0&quot;
+cpuid.0.eax = &quot;0000:0000:0000:0000:0000:0000:0000:1011&quot;
+cpuid.0.ebx = &quot;0111:0101:0110:1110:0110:0101:0100:0111&quot;
+cpuid.0.ecx = &quot;0110:1100:0110:0101:0111:0100:0110:1110&quot;
+cpuid.0.edx = &quot;0100:1001:0110:0101:0110:1110:0110:1001&quot;
+cpuid.1.eax = &quot;0000:0000:0000:0001:0000:0110:0111:0001&quot;
+cpuid.1.ebx = &quot;0000:0010:0000:0001:0000:1000:0000:0000&quot;
+cpuid.1.ecx = &quot;1000:0010:1001:1000:0010:0010:0000:0011&quot;
+cpuid.1.edx = &quot;0000:0111:1000:1011:1111:1011:1111:1111&quot;
+smbios.reflectHost = &quot;TRUE&quot;
+hw.model = &quot;MacBookPro14,3&quot;
+board-id = &quot;Mac-551B86E5744E2388&quot;
+keyboard.vusb.enable = &quot;TRUE&quot;
+mouse.vusb.enable = &quot;TRUE&quot;
+
+3、鼠标失灵需要配置虚拟机usb版本为2.0
+最小40G硬盘
+安装过程无磁盘时先抹除磁盘
+
+4、之后安装vmware tools
+需要离线下载
+dawin.iso
+dvd里选择该文件安装
+（解决鼠标掉帧卡顿不能全屏等问题）
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[docker swarm和compose]]></title>
+        <id>https://dongdongguang.github.io/post/docker-swarm-he-compose/</id>
+        <link href="https://dongdongguang.github.io/post/docker-swarm-he-compose/">
+        </link>
+        <updated>2022-02-08T07:26:58.000Z</updated>
+        <content type="html"><![CDATA[<p>在生产或是开发环境中，docker往往是既采用集群又使用单机模式去运行容器的，需要了解两种方式差异点去选择适合自己的方式来运行容器，以下介绍本人使用docker两年过程中遇到的问题</p>
+<p>1、单机版docker功能比集群方式功能强大，可选择性多，单机更适合作为类似虚拟机的功能，需要经常进入到容器内操作，比如提供编译环境的容器</p>
+<p>2、集群容器部署重点在于服务，提供稳定的服务而不需要进入容器内操作</p>
+<p>3、集群一般不使用host网络，使用udp广播，多播一般用单机版</p>
+<p>4、需要特权模式的容器只能使用单机版，比如使用service命令，集群无法解决这个问题</p>
+<p>5、需要使用mount命令，当操作需要挂载磁盘文件时，集群中的cap_add 无法挂载磁盘文件</p>
+<p>6、作为服务去部署的容器，一般重启模式为on-failure，这种方式每一次机器重启都会导致docker在启动的时候另起一个容器（前一个容器停止运行，使用docker pa -a仍能看到，默认最多一个服务保留5个记录）而如果你之前进入到容器，安装个某些插件，那么重启的那个容器不会保留你之前的操作</p>
+<p>7、docker swarm和docker compose混用的时候，端口如果起了冲突并不会报错，这会导致你连接的时候出现混乱，因为docker swarm本身有负载均衡的作用，你在访问的时候访问集群内任一ip都能访问到service，而假设你以service方式部署了gitlab在机器a上，访问端口是8080，你再以compose方式去部署gitlab2在机器b上（机器a，b是集群），端口也是8080。那么你访问b：8080，此时可能就是以轮询的方式去访问gitlab和gitlab2的，即使登录进去了，也可能被gitlab踢出</p>
+<p>这里有几个疑问</p>
+<p>1、docker集群本身有负载均衡的作用，那么采用docker的多实例部署配合分布式文件系统和使用软件本身的集群部署方式，哪个效果最好，混用又会怎么样呢，比如我起了8个elasticsearch的docker service，和部署elasticsearch集群8个实例，这两种方式效果一样么，区别在哪呢</p>
+<p>2、使用多实例的nginx的负载均衡效果和使用nginx配置反向代理负载均衡的效果一样么</p>
+<p>3、yml3版本里创建的stack network命名一般是&quot;stack名称network名称&quot;,但另外一个服务去访问这个网络却是以&quot;network名称：端口号&quot;去访问的，使用&quot;stack名称network名称：端口&quot;去访问有时可以有时不行</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[python页面展示shell命令结果]]></title>
+        <id>https://dongdongguang.github.io/post/python-ye-mian-zhan-shi-shell-ming-ling-jie-guo/</id>
+        <link href="https://dongdongguang.github.io/post/python-ye-mian-zhan-shi-shell-ming-ling-jie-guo/">
+        </link>
+        <updated>2022-01-13T10:40:54.000Z</updated>
+        <content type="html"><![CDATA[<p>使用flask框架</p>
+<p>app.py</p>
+<pre><code class="language-python">from flask import Flask, render_template, request
+import remote_ssh
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    s = render_template(&quot;index.html&quot;)
+    return s
+
+@app.route('/ssh')
+def get_ssh_command():
+    command = request.args.get(&quot;command&quot;)
+    result = remote_ssh.remote_ssh(command)
+    
+    result = result.replace(&quot;\n&quot;, &quot;&lt;br&gt;&quot;)
+    result = result.replace(&quot; &quot;, &quot;&amp;nbsp;&quot;)
+    print(result)
+    return result
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
+</code></pre>
+<p>通过路由ssh连接到服务器执行命令，注意将获取到的字符串格式化为html输出，这里只做简单处理，还是有字体没等宽的问题</p>
+<p>index.html</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Title&lt;/title&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+
+&lt;form action=&quot;/ssh&quot; method=&quot;get&quot;&gt;
+&lt;input type=&quot;text&quot; name=&quot;command&quot;&gt;
+&lt;input type=&quot;submit&quot; value=&quot;查看&quot;&gt;
+&lt;/form&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>remote_ssh.py</p>
+<pre><code class="language-python">import paramiko
+
+def remote_ssh(command):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+    ssh.connect(&quot;xxx.xxx.xxx.xxx&quot;, 22, &quot;xxx&quot;, &quot;xxx&quot;)
+    stdin, stdout, stderr = ssh.exec_command(command)
+    str = stdout.read().decode()
+
+    # print(str)
+    return str
+
+    ssh.close()
+
+</code></pre>
+<p>运行app.py，访问http://127.0.0.1:5000/	在文本框输入shell命令即可查看运行结果</p>
+<p><img src="https://dongdongguang.github.io/post-images/1642141969974.png" alt="" loading="lazy"><br>
+<img src="https://dongdongguang.github.io/post-images/1642141991797.png" alt="" loading="lazy"></p>
+<p>最后，这里有个小问题，使用ssh连接服务器默认没有执行bashrc文件，故无法使用该文件里的函数或者变量</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[魔术代码]]></title>
+        <id>https://dongdongguang.github.io/post/mo-zhu-dai-ma/</id>
+        <link href="https://dongdongguang.github.io/post/mo-zhu-dai-ma/">
+        </link>
+        <updated>2021-12-31T08:24:01.000Z</updated>
+        <content type="html"><![CDATA[<h6 id="看看大神与普通码农的差异">看看大神与普通码农的差异</h6>
+<pre><code class="language-sh">#!/bin/bash
+a='sh'
+&quot;&quot;&quot;exec&quot; python -E &quot;$0&quot; &quot;$@&quot; &quot;&quot;&quot;#$a&quot;
+print(a)
+
+</code></pre>
+<p>这段代码的神奇之处在于他无论用bash去解释还是用python去解释，代码的执行结果完全一样，最后都是输出“sh”</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[局域网DNS劫持]]></title>
+        <id>https://dongdongguang.github.io/post/局域网DNS劫持/</id>
+        <link href="https://dongdongguang.github.io/post/局域网DNS劫持/">
+        </link>
+        <updated>2021-12-31T02:08:28.000Z</updated>
+        <content type="html"><![CDATA[<h6 id="ettercap">ettercap</h6>
+<p>使用该工具可实现局域网DNS劫持，让局域网的其他小伙伴上不了网</p>
+<p>具体实现方式自行百度哈</p>
+<p><strong>遇到恶作剧DNS劫持解决办法：</strong></p>
+<p>打开cmd命令行输入ipconfig /flushdns，刷新dns缓存即可（针对windows环境）</p>
+]]></content>
+    </entry>
+</feed>

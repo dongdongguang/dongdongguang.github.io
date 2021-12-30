@@ -1,0 +1,265 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>暴力破解wifi | 嵩大大</title>
+<link rel="shortcut icon" href="https://dongdongguang.github.io/favicon.ico?v=1657007564968">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://dongdongguang.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="暴力破解wifi | 嵩大大 - Atom Feed" href="https://dongdongguang.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="记一次使用kali破解wifi密码
+1、使用 airmon-ng 命令检查网卡是否支持监听功能。
+显示可以看到无线网卡wlan0，即代表支持监听模式的。（没有显示则代表没有可以支持监听的网卡）
+2、激活无线网卡，开启网卡的监听模式。
+使用命..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://dongdongguang.github.io">
+  <img class="avatar" src="https://dongdongguang.github.io/images/avatar.png?v=1657007564968" alt="">
+  </a>
+  <h1 class="site-title">
+    嵩大大
+  </h1>
+  <p class="site-description">
+    我是一个轮子，一直在转啊转，就起飞了
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/post/movies" class="menu">
+          电影推荐
+        </a>
+      
+    
+      
+        <a href="/archives" class="menu">
+          归档
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+      
+        <a href="/post/about" class="menu">
+          关于
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              暴力破解wifi
+            </h2>
+            <div class="post-info">
+              <span>
+                2021-12-31
+              </span>
+              <span>
+                3 min read
+              </span>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h4 id="记一次使用kali破解wifi密码">记一次使用kali破解wifi密码</h4>
+<p>1、使用 airmon-ng 命令检查网卡是否支持监听功能。</p>
+<p>显示可以看到无线网卡wlan0，即代表支持监听模式的。（没有显示则代表没有可以支持监听的网卡）</p>
+<p>2、激活无线网卡，开启网卡的监听模式。</p>
+<p>使用命令 airmon-ng start wlan0 激活无线网卡至monitor即监听模式。</p>
+<p>再次使用 ifconfig ，可以发现无线网卡已经被重命名为wlan0mon。</p>
+<p>3、描当前环境中WIFI信号</p>
+<p>使用 airodump-ng wlan0mon 获取当前网络概况。当搜索到我们想破解的WIFI时，按Ctrl+C停止搜索。</p>
+<p>4、探测无线网络，抓取无线数据包。</p>
+<p>具体命令如下： airodump-ng -c 12 -w 704 --bssid xxxxxxxxx wlan0mon ，按Enter开始执行。</p>
+<pre><code>
+参数解释：
+
+-c 设置目标AP的工作信道。
+
+-w 后面紧跟要保存的文件的文件名，注意：生成的文件名是704-01.cap，后面破解密码时需要用到文件名。
+
+wlan0mon：为之前已经开启监听的网卡名。
+
+在右上角出现handshake的提示证明获得了包含WPA-PSK密码的4次握手数据报文。
+
+
+-c后面的参数即为上条指令查到的CH信息
+</code></pre>
+<p>在右上角出现handshake的提示证明获得了包含WPA-PSK密码的4次握手数据报文。</p>
+<figure data-type="image" tabindex="1"><img src="https://dongdongguang.github.io/post-images/1641274345091.png" alt="" loading="lazy"></figure>
+<p>5、如未出现，进行deauth攻击加速破解过程，不要关闭当前shell，打开另一个shell进行下一步，输入命令：</p>
+<p>aireplay-ng -0 10 -a AP的MAC -c 客户端的mac wlan0mon</p>
+<p>注意如果抓不到握手包就把对方踢下线，这样就会抓包成功</p>
+<pre><code>参数解释：
+
+-0：采用Deauth攻击模式，后面紧跟攻击次数，这里设置为10，大家可以根据实际情况设置，如果设置为0，则会导致对方一直掉线。
+
+-a：后面跟AP的mac地址。
+
+-c：后面跟客户端的mac地址。
+</code></pre>
+<p>6、破解WIFI握手包。</p>
+<p>使用命令： aircrack-ng -w 密码字典的路径 捕获的.cap文件 ，按Enter开始执行。之前抓到的握手包会显示在内，选择7，按Enter进行破解。</p>
+<p>root💀kali)-[/home/wifi]</p>
+<p>└─# aircrack-ng -w /usr/share/wordlists/metasploit/password.lst 704-01.cap</p>
+<figure data-type="image" tabindex="2"><img src="https://dongdongguang.github.io/post-images/1641274365227.png" alt="" loading="lazy"></figure>
+<p>如图，中间key即为wifi，密码</p>
+<p>注：此方式你得需要有个强大的字典才能增加破解成功率，上述例子使用的是kali自带的字典，仅仅能破解弱密码</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#%E8%AE%B0%E4%B8%80%E6%AC%A1%E4%BD%BF%E7%94%A8kali%E7%A0%B4%E8%A7%A3wifi%E5%AF%86%E7%A0%81">记一次使用kali破解wifi密码</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+
+        
+          
+            <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '607293bd50b78cb50d1c',
+    clientSecret: 'aae74dca38e90b527931b027253ada0defc5254a',
+    repo: 'dongdongguang.github.io',
+    owner: 'dongdongguang',
+    admin: ['dongdongguang'],
+    id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false  // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  搬运工
+<script src="https://eqcn.ajz.miesnfu.com/wp-content/plugins/wp-3d-pony/live2dw/lib/L2Dwidget.min.js"></script>
+  <!--小帅哥： https://unpkg.com/live2d-widget-model-chitose@1.0.5/assets/chitose.model.json-->
+  <!--萌娘：https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json-->
+  <!--小可爱（女）：https://unpkg.com/live2d-widget-model-koharu@1.0.5/assets/koharu.model.json-->
+  <!--小可爱（男）：https://unpkg.com/live2d-widget-model-haruto@1.0.5/assets/haruto.model.json-->
+  <!--初音：https://unpkg.com/live2d-widget-model-miku@1.0.5/assets/miku.model.json-->
+   <!-- 上边的不一样连接显示的是不一样的小人，这个能够根据须要来选择 下边的初始化部分，能够修改宽高来修改小人的大小，或者是鼠标移动到小人上的透明度，也能够修改小人在页面出现的位置。 -->
+  <script>
+    /*https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json*/
+    L2Dwidget.init({ "model": { jsonPath:
+          "https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json",
+        "scale": 1 }, "display": { "position": "right", "width": 220, "height": 300,
+        "hOffset": 0, "vOffset": -20 }, "mobile": { "show": true, "scale": 0.5 },
+      "react": { "opacityDefault": 0.8, "opacityOnHover": 0.1 } });
+  </script>
+  <a class="rss" href="https://dongdongguang.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

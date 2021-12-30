@@ -1,0 +1,613 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>制作最小根文件系统 | 嵩大大</title>
+<link rel="shortcut icon" href="https://dongdongguang.github.io/favicon.ico?v=1657007564968">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://dongdongguang.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="制作最小根文件系统 | 嵩大大 - Atom Feed" href="https://dongdongguang.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="1、u-boot
+第一步：U-Boot 代码下载：
+https://ftp.denx.de/pub/u-boot/
+https://github.com/u-boot/u-boot/tags
+git clone https://gitlab..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://dongdongguang.github.io">
+  <img class="avatar" src="https://dongdongguang.github.io/images/avatar.png?v=1657007564968" alt="">
+  </a>
+  <h1 class="site-title">
+    嵩大大
+  </h1>
+  <p class="site-description">
+    我是一个轮子，一直在转啊转，就起飞了
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/post/movies" class="menu">
+          电影推荐
+        </a>
+      
+    
+      
+        <a href="/archives" class="menu">
+          归档
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+      
+        <a href="/post/about" class="menu">
+          关于
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              制作最小根文件系统
+            </h2>
+            <div class="post-info">
+              <span>
+                2022-07-05
+              </span>
+              <span>
+                11 min read
+              </span>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h1 id="1-u-boot">1、u-boot</h1>
+<h3 id="第一步u-boot-代码下载">第一步：U-Boot 代码下载：</h3>
+<p>https://ftp.denx.de/pub/u-boot/<br>
+https://github.com/u-boot/u-boot/tags</p>
+<pre><code class="language-shell">git clone https://gitlab.denx.de/u-boot/u-boot.git
+
+# ls configs下能看到各种开发板的配置
+vexpress_ca9x4_defconfig
+
+# vexpress_ca9x4是 arm 公司的模拟开发板
+</code></pre>
+<h3 id="第二步编译arm">第二步：编译（arm）</h3>
+<pre><code class="language-shell">export ARCH=arm
+export CROSS_COMPILE=arm-linux-gnueabihf-
+make clean
+make vexpress_ca9x4_defconfig
+
+make -j8
+
+# 注：vexpress_ca9x4_defconfig 是armv7架构的主板配置
+
+</code></pre>
+<h2 id="aarch64-平台编译">（aarch64 平台编译）</h2>
+<pre><code class="language-shell"># 使用armv8的查看configs下面的其他配置。如 qemu_arm64_defconfig
+# export ARCH=aarch
+
+export CROSS_COMPILE=aarch64-linux-gnu-
+make qemu_arm64_defconfig
+make -j8
+
+
+# 最终编译生成 elf 格式的可执行文件 u-boot 和纯二进制文件u-boot.bin，其中 QEMU 可以启动的为 elf 格式的可执行文件 u-boot。
+
+
+
+# qemu验证 u-boot
+
+qemu-system-aarch64 \
+	-M virt -cpu cortex-a72 -m 1G -nographic \
+	-kernel u-boot
+
+=&gt; setenv ipaddr 10.0.2.15
+=&gt; setenv serverip 10.0.2.2
+=&gt; setenv netmask 255.255.0.0
+=&gt; save
+=&gt; ping 10.0.2.2
+Using virtio-net#32 device
+host 10.0.2.2 is alive
+
+
+</code></pre>
+<h1 id="2-linux内核">2、linux内核</h1>
+<p>源码  https://mirrors.edge.kernel.org/pub/linux/kernel/</p>
+<p><strong>1.下载并解压内核</strong></p>
+<p>内核下载官网：https://www.kernel.org/</p>
+<pre><code class="language-shell"># 可能缺少依赖
+
+apt-get install flex -y
+apt-get install bison -y
+
+ 
+
+# make报错可能缺少依赖
+
+apt install libelf-dev -y
+
+# 可能需要修改 .config文件（使用make x86_64_defconfig 即不需要修改.config文件）
+
+CONFIG_SYSTEM_TRUSTED_KEY=&quot;&quot; 
+
+CONFIG_SYSTEM_REVOCATION_KEYS=&quot;&quot;
+
+# 修改完需要make clean
+</code></pre>
+<h3 id="1指定硬件体系架构-x86平台">1.指定硬件体系架构。（x86平台）</h3>
+<p>为了减少安装编译器的过程，我在本例中使用的是x86，因为我的开发环境就是x86。如果你要编译arm的内核，则指定ARCH=arm且需要安装交叉编译器。</p>
+<pre><code>export ARCH=x86
+</code></pre>
+<p>2.配置board config,此处配置为 x86_64_defconfig。好了，我们点好菜了，菜单就是x86_64_defconfig</p>
+<pre><code>make x86_64_defconfig
+</code></pre>
+<p>3.配置内核</p>
+<p>这一步其实是对第2步的菜单进行微调，我们需要内核支持ramdisk驱动，所以需要选中如下配置：</p>
+<pre><code>General setup ---&gt;
+​    ----&gt; [*] Initial RAM filesystem and RAM disk (initramfs/initrd) support
+  Device Drivers ---&gt;
+​    [*] Block devices ---&gt;
+​        &lt;*&gt;  RAM block device support
+​        (65536) Default RAM disk size (kbytes)
+
+# 这里设置最大64M
+</code></pre>
+<p>4.编译内核</p>
+<pre><code>make
+
+# 编译成功后的内核位于：arch/x86_64/boot/bzImage
+</code></pre>
+<h3 id="模拟arrch64-编译步骤">（模拟arrch64 编译步骤）</h3>
+<pre><code class="language-shell">export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+make defconfig
+make menuconfig
+
+# 修改ramdisk大小
+
+make
+</code></pre>
+<h1 id="3-busybox制作最小rootfs">3、busybox制作最小rootfs</h1>
+<p>下载： https://busybox.net/</p>
+<h3 id="arm平台">（arm平台）</h3>
+<p>进入busybox-1.33.1目录以后，需要修改Makefile来指定编译工具链和开发板架构，在164行和190行附近有如下两行代码</p>
+<pre><code>1 CROSS_COMPILE ?= /home/moxa/linux/toolchain/gcc-linaro-4.9.4-2017.01-i686_arm-linux-gnueabi/bin/arm-linux-gnueabi-
+2 ARCH ?= arm
+</code></pre>
+<p>将CROSS_COMPILE指定为自己的编译工具链（这里最好使用与编译linux kernel一样的工具链，以免造成未知麻烦），将ARCH指定为 arm（根据开发版）</p>
+<p>x86平台可能少库</p>
+<pre><code>sudo apt-get install libncurses5-dev 
+</code></pre>
+<p>步骤（aarch64平台）</p>
+<pre><code>export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+make defconfig #生成默认配置，再执行
+
+make menuconfig
+</code></pre>
+<pre><code>Settings ---&gt;
+
+--- Build Options 
+
+[*] Build static binary (no shared libs)
+</code></pre>
+<p>build static binary需要选中，这样才能把BusyBox编译成静态链接的可执行文件，后续就不再需要将其他动态库加入到rootfs，达到rootfs体积最小的目的</p>
+<p>然后保存退出，执行</p>
+<pre><code>make -j8
+make install
+</code></pre>
+<p>busybox-1.33.1目录下就会生成_install文件夹，即为rootfs。可以看到_install文件夹一共1.6M</p>
+<pre><code>1 moxa@moxa-ThinkPad-X240:~/linux/github/busybox-1.33.1$ du -h _install/
+ 2 1.5M  _install/bin
+ 3 4.0K  _install/usr/bin
+ 4 4.0K  _install/usr/sbin
+ 5 12K   _install/usr
+ 6 4.0K  _install/sbin
+ 7 1.6M  _install/
+</code></pre>
+<p>接下来继续制作完成rootfs，进入到_install文件夹</p>
+<p>执行如下命令，创建必要的文件和文件夹</p>
+<p>mkdir dev etc home lib mnt proc root sys tmp var -p</p>
+<p>创建文件 ，内容如下</p>
+<pre><code>vim etc/inittab
+
+::sysinit:/etc/init.d/rcS
+::respawn:-/bin/sh
+::askfirst:-/bin/sh
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/swapoff -a
+</code></pre>
+<pre><code># 开机免登录进shell
+
+::sysinit:/etc/init.d/rcS
+console::askfirst:-/bin/sh
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+
+::shutdown:/sbin/swapoff -a
+</code></pre>
+<pre><code># 开机要登录
+
+::sysinit:/etc/init.d/rcS
+::respawn:-/bin/login
+</code></pre>
+<p>命令解释</p>
+<pre><code>  respawn——当后面的process进程结束时，该进程又会被重启。
+
+  askfirst——这个类似于上面的respawn，但是在运行process之前，它会打印&quot;Please press Enter to activate this console.&quot;，然后等待用户按下Enter来启动该 process。通常askfirst是用于启动终端设备的，如果不想看到这个提示，就像我那样使用respawn，而非askfirst.
+
+  once——process只会执行一次。在上面的例子中，执行telnetd守护进程，-l参数表示连接时，使用login登录。同时执行login程序。
+
+  restart——重新启动init进程时执行process.
+
+  ctrlaltdel——当Ctrl+Alt+Del三个键同时按下后，init进程就会收到SIGINT信号，此时运行process。
+
+  shutdown——在系统关机的时候执行process。在上面的例子中，在关机时卸载了所有已挂载的设备。
+
+ 
+</code></pre>
+<pre><code class="language-shell"># 创建文件夹 
+
+mkdir etc/init.d/ -p
+
+# 创建文件，内容如下
+
+vim etc/init.d/rcS
+
+#!/bin/sh
+
+# This is the first script called by init process
+
+echo -e &quot;system booting&quot;
+
+/bin/mount -a
+echo /sbin/mdev&gt;/proc/sys/kernel/hotplug
+mdev -s 
+
+# +权限 
+chmod 777 etc/init.d/rcS
+</code></pre>
+<p>创建文件,内容如下：</p>
+<pre><code>vim etc/fstab
+
+#device   mount-point   type     options    dump   fsck order
+ proc    /proc      proc     defaults    0    0
+ tmpfs    /tmp      tmpfs    defaults    0    0
+ sysfs    /sys      sysfs    defaults    0    0
+ tmpfs    /dev      tmpfs    defaults    0    0
+</code></pre>
+<p>创建文件, 内容如下</p>
+<pre><code class="language-shell">vim etc/profile
+
+#!/bin/sh
+ export PS1=&quot;[\u@\h:\w]\# &quot;
+ PATH=/bin:/sbin:/usr/bin:/usr/sbin
+ LD_LIBRARY_PATH=/lib:/usr/lib:$LD_LIBRARY_PATH
+ export PATH LD_LIBRARY_PATH 
+
+echo -e &quot;welcome&quot;
+
+# mknod dev/console c 5 1  #该文件节点是必须的
+
+# mknod dev/null c 1 3
+</code></pre>
+<p>至此，我们最小的rootfs就完成了，_install即为完成的最小rootfs</p>
+<p>有些变量默认值</p>
+<pre><code>USER=&quot;`id -un`&quot;
+
+LOGNAME=$USER
+
+HOSTNAME='/bin/hostname'
+</code></pre>
+<p>#######配置网络################################</p>
+<pre><code>/sbin/ifconfig lo 127.0.0.1 netmask 255.0.0.0
+
+/sbin/ifconfig eth0 192.168.1.70
+
+/sbin/ifconfig eth0 netmask 255.255.255.0
+
+/sbin/route add default gw 192.168.1.1 eth0
+</code></pre>
+<p>可执行程序记得复制 /lib /usr/lib下面的so到根文件系统</p>
+<h1 id="4-rootfs制作成ramdisk">4、<strong>rootfs<strong><strong>制作成</strong></strong>ramdisk</strong></h1>
+<p><strong>rootfs<strong><strong>制作成</strong></strong>ramdisk<strong><strong>供</strong></strong>linux kernel<strong><strong>加载</strong></strong>~</strong></p>
+<p>创建一个目录my_rootfs（根据自己需要命名）,将最小rootfs目录放在这个目录下</p>
+<pre><code class="language-shell">## 以下命令都在my_rootfs下执行
+
+sudo dd if=/dev/zero of=ramdisk bs=1M count=200
+
+# 生成一个叫ramdisk的空文件，大小为8M
+
+sudo mkfs.ext4 -F ramdisk
+
+# 将其初始化为ext4文件系统格式
+
+sudo mkdir -p ./initrd
+sudo mount -t ext4 ramdisk ./initrd
+
+# 创建initrd文件夹，将ramdisk的文件系统挂载到initrd
+
+sudo cp rootfs/* ./initrd -raf
+
+# 将最小文件系统里面的所有文件拷贝到ramdisk文件系统
+
+sudo mknod initrd/dev/console c 5 1
+sudo mknod initrd/dev/null c 1 3
+
+# 创建必要的字符设备
+
+sudo umount ./initrd
+
+# 卸载文件系统
+
+sudo gzip --best -c ramdisk &gt; ramdisk.gz
+
+# 压缩并打包成ramdisk.gz
+
+sudo mkimage -n &quot;ramdisk&quot; -A arm -O linux -T ramdisk -C gzip -d ramdisk.gz ramdisk.img
+
+# 最后使用mkimage命令生成ramdisk.img即为我们需要的ramdisk文件系统。
+
+# mkimage使用需要安装工具
+
+apt install u-boot-tools -y
+ 
+</code></pre>
+<p>注：qemu可以加载磁盘文件</p>
+<h1 id="5-qemu验证系统">5、qemu验证系统</h1>
+<p>官方文档</p>
+<p>https://wiki.qemu.org/Documentation</p>
+<p>（x86_64平台）通过qemu模拟器启动我们自己编译的内核和文件系统（qemu能在docker里运行）：</p>
+<pre><code>apt install qemu -y
+
+# qemu-system-x86_64 \
+
+ -kernel ./linux-4.9.229/arch/x86_64/boot/bzImage \
+
+ -initrd ./busybox-1.30.0/rootfs.img.gz  \
+
+ -append &quot;root=/dev/ram init=/linuxrc&quot; \
+
+ -serial [file:output.txt](file://output.txt)
+
+ 
+</code></pre>
+<pre><code>qemu-system-x86_64 -kernel bzImage -initrd ramdisk -m 1024 -nographic -append &quot;console=ttyS0&quot;
+
+这样启动日志重定向到终端
+</code></pre>
+<p>（需要源码安装qemu）</p>
+<p>（aarch64平台启动）</p>
+<pre><code>/work/linux/qemu-7.0.0-rc2/build/qemu-system-aarch64 \
+
+-M virt -cpu cortex-a72 -m 1G -nographic \
+
+-kernel /work/linux/linux-5.17.1/arch/arm64/boot/Image -initrd ./ramdisk \
+
+-append &quot;root=/dev/ram0 ramdisk_size=65536&quot;
+
+# 最后一句可不要
+
+
+ps -ef|grep qemu|awk '{print $2}'|head -n 1 |xargs kill -9
+
+另起终端退出qemu
+
+ 
+# 解决文件系统权限问题，产生这个问题的原因是文件系统此时处于只读模式下，/etc/passwd和/etc/shadow不能被修改，运行下面的命令就可以解决这个问题
+
+# mount -rw -o remount /
+</code></pre>
+<pre><code>注：
+
+ mount 是挂载命令
+
+ -rw 是说指定的挂载文件是可读/写的
+
+ -o remount / 是说重新挂载根
+</code></pre>
+<p>测试ssh（针对ssh已经移植到文件系统的网络配置，ssh移植见下一节）</p>
+<pre><code>qemu-system-aarch64 \
+
+-M virt -cpu cortex-a72 -m 1G -nographic \
+
+-kernel Image \
+
+-initrd ramdisk \
+
+-device e1000,netdev=net0 \
+
+-netdev user,id=net0,hostfwd=tcp::5555-:22 \
+</code></pre>
+<p>此命令讲虚拟机的 22 端口映射到本机的 5555 虚拟机登录后需要设置ip才能登录</p>
+<p>最后仔细发现arm端内部ip需要设置为10.0.2.15.或者使用 dhcp 命令分配。为什么是这样，可以参考qemu的文档</p>
+<pre><code>ifconfig eth0 10.0.2.15
+ifconfig eth0 up
+
+# 连接到虚拟机
+
+ssh -p 5555 127.0.0.1 
+
+# 如果是在docker创建的虚拟机，外部想要访问虚拟机，需要再加一层映射，如：
+
+ssh -L 172.20.0.2:3944:127.0.0.1:3933 127.0.0.1
+</code></pre>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li><a href="#1-u-boot">1、u-boot</a><br>
+*
+<ul>
+<li><a href="#%E7%AC%AC%E4%B8%80%E6%AD%A5u-boot-%E4%BB%A3%E7%A0%81%E4%B8%8B%E8%BD%BD">第一步：U-Boot 代码下载：</a></li>
+<li><a href="#%E7%AC%AC%E4%BA%8C%E6%AD%A5%E7%BC%96%E8%AF%91arm">第二步：编译（arm）</a></li>
+<li><a href="#aarch64-%E5%B9%B3%E5%8F%B0%E7%BC%96%E8%AF%91">（aarch64 平台编译）</a></li>
+</ul>
+</li>
+<li><a href="#2-linux%E5%86%85%E6%A0%B8">2、linux内核</a><br>
+*
+<ul>
+<li><a href="#1%E6%8C%87%E5%AE%9A%E7%A1%AC%E4%BB%B6%E4%BD%93%E7%B3%BB%E6%9E%B6%E6%9E%84-x86%E5%B9%B3%E5%8F%B0">1.指定硬件体系架构。（x86平台）</a></li>
+<li><a href="#%E6%A8%A1%E6%8B%9Farrch64-%E7%BC%96%E8%AF%91%E6%AD%A5%E9%AA%A4">（模拟arrch64 编译步骤）</a></li>
+</ul>
+</li>
+<li><a href="#3-busybox%E5%88%B6%E4%BD%9C%E6%9C%80%E5%B0%8Frootfs">3、busybox制作最小rootfs</a><br>
+*
+<ul>
+<li><a href="#arm%E5%B9%B3%E5%8F%B0">（arm平台）</a></li>
+</ul>
+</li>
+<li><a href="#4-rootfs%E5%88%B6%E4%BD%9C%E6%88%90ramdisk">4、<strong>rootfs<strong><strong>制作成</strong></strong>ramdisk</strong></a></li>
+<li><a href="#5-qemu%E9%AA%8C%E8%AF%81%E7%B3%BB%E7%BB%9F">5、qemu验证系统</a></li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://dongdongguang.github.io/post/zhi-zuo-yuan-ben-macos-de-iso-jing-xiang/">
+              <h3 class="post-title">
+                制作原本macos的iso镜像
+              </h3>
+            </a>
+          </div>
+        
+
+        
+          
+            <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '607293bd50b78cb50d1c',
+    clientSecret: 'aae74dca38e90b527931b027253ada0defc5254a',
+    repo: 'dongdongguang.github.io',
+    owner: 'dongdongguang',
+    admin: ['dongdongguang'],
+    id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false  // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  搬运工
+<script src="https://eqcn.ajz.miesnfu.com/wp-content/plugins/wp-3d-pony/live2dw/lib/L2Dwidget.min.js"></script>
+  <!--小帅哥： https://unpkg.com/live2d-widget-model-chitose@1.0.5/assets/chitose.model.json-->
+  <!--萌娘：https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json-->
+  <!--小可爱（女）：https://unpkg.com/live2d-widget-model-koharu@1.0.5/assets/koharu.model.json-->
+  <!--小可爱（男）：https://unpkg.com/live2d-widget-model-haruto@1.0.5/assets/haruto.model.json-->
+  <!--初音：https://unpkg.com/live2d-widget-model-miku@1.0.5/assets/miku.model.json-->
+   <!-- 上边的不一样连接显示的是不一样的小人，这个能够根据须要来选择 下边的初始化部分，能够修改宽高来修改小人的大小，或者是鼠标移动到小人上的透明度，也能够修改小人在页面出现的位置。 -->
+  <script>
+    /*https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json*/
+    L2Dwidget.init({ "model": { jsonPath:
+          "https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json",
+        "scale": 1 }, "display": { "position": "right", "width": 220, "height": 300,
+        "hOffset": 0, "vOffset": -20 }, "mobile": { "show": true, "scale": 0.5 },
+      "react": { "opacityDefault": 0.8, "opacityOnHover": 0.1 } });
+  </script>
+  <a class="rss" href="https://dongdongguang.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,228 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>docker swarm和compose | 嵩大大</title>
+<link rel="shortcut icon" href="https://dongdongguang.github.io/favicon.ico?v=1657007564968">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://dongdongguang.github.io/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="docker swarm和compose | 嵩大大 - Atom Feed" href="https://dongdongguang.github.io/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="在生产或是开发环境中，docker往往是既采用集群又使用单机模式去运行容器的，需要了解两种方式差异点去选择适合自己的方式来运行容器，以下介绍本人使用docker两年过程中遇到的问题
+1、单机版docker功能比集群方式功能强大，可选择性多，..." />
+    <meta name="keywords" content="docker" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://dongdongguang.github.io">
+  <img class="avatar" src="https://dongdongguang.github.io/images/avatar.png?v=1657007564968" alt="">
+  </a>
+  <h1 class="site-title">
+    嵩大大
+  </h1>
+  <p class="site-description">
+    我是一个轮子，一直在转啊转，就起飞了
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/post/movies" class="menu">
+          电影推荐
+        </a>
+      
+    
+      
+        <a href="/archives" class="menu">
+          归档
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+      
+        <a href="/post/about" class="menu">
+          关于
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              docker swarm和compose
+            </h2>
+            <div class="post-info">
+              <span>
+                2022-02-08
+              </span>
+              <span>
+                3 min read
+              </span>
+              
+                <a href="https://dongdongguang.github.io/tag/aVRE9KPUM/" class="post-tag">
+                  # docker
+                </a>
+              
+            </div>
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <p>在生产或是开发环境中，docker往往是既采用集群又使用单机模式去运行容器的，需要了解两种方式差异点去选择适合自己的方式来运行容器，以下介绍本人使用docker两年过程中遇到的问题</p>
+<p>1、单机版docker功能比集群方式功能强大，可选择性多，单机更适合作为类似虚拟机的功能，需要经常进入到容器内操作，比如提供编译环境的容器</p>
+<p>2、集群容器部署重点在于服务，提供稳定的服务而不需要进入容器内操作</p>
+<p>3、集群一般不使用host网络，使用udp广播，多播一般用单机版</p>
+<p>4、需要特权模式的容器只能使用单机版，比如使用service命令，集群无法解决这个问题</p>
+<p>5、需要使用mount命令，当操作需要挂载磁盘文件时，集群中的cap_add 无法挂载磁盘文件</p>
+<p>6、作为服务去部署的容器，一般重启模式为on-failure，这种方式每一次机器重启都会导致docker在启动的时候另起一个容器（前一个容器停止运行，使用docker pa -a仍能看到，默认最多一个服务保留5个记录）而如果你之前进入到容器，安装个某些插件，那么重启的那个容器不会保留你之前的操作</p>
+<p>7、docker swarm和docker compose混用的时候，端口如果起了冲突并不会报错，这会导致你连接的时候出现混乱，因为docker swarm本身有负载均衡的作用，你在访问的时候访问集群内任一ip都能访问到service，而假设你以service方式部署了gitlab在机器a上，访问端口是8080，你再以compose方式去部署gitlab2在机器b上（机器a，b是集群），端口也是8080。那么你访问b：8080，此时可能就是以轮询的方式去访问gitlab和gitlab2的，即使登录进去了，也可能被gitlab踢出</p>
+<p>这里有几个疑问</p>
+<p>1、docker集群本身有负载均衡的作用，那么采用docker的多实例部署配合分布式文件系统和使用软件本身的集群部署方式，哪个效果最好，混用又会怎么样呢，比如我起了8个elasticsearch的docker service，和部署elasticsearch集群8个实例，这两种方式效果一样么，区别在哪呢</p>
+<p>2、使用多实例的nginx的负载均衡效果和使用nginx配置反向代理负载均衡的效果一样么</p>
+<p>3、yml3版本里创建的stack network命名一般是&quot;stack名称network名称&quot;,但另外一个服务去访问这个网络却是以&quot;network名称：端口号&quot;去访问的，使用&quot;stack名称network名称：端口&quot;去访问有时可以有时不行</p>
+
+              </div>
+              <div class="toc-container">
+                
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://dongdongguang.github.io/post/python-ye-mian-zhan-shi-shell-ming-ling-jie-guo/">
+              <h3 class="post-title">
+                python页面展示shell命令结果
+              </h3>
+            </a>
+          </div>
+        
+
+        
+          
+            <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '607293bd50b78cb50d1c',
+    clientSecret: 'aae74dca38e90b527931b027253ada0defc5254a',
+    repo: 'dongdongguang.github.io',
+    owner: 'dongdongguang',
+    admin: ['dongdongguang'],
+    id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false  // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+          
+
+          
+        
+
+        <div class="site-footer">
+  搬运工
+<script src="https://eqcn.ajz.miesnfu.com/wp-content/plugins/wp-3d-pony/live2dw/lib/L2Dwidget.min.js"></script>
+  <!--小帅哥： https://unpkg.com/live2d-widget-model-chitose@1.0.5/assets/chitose.model.json-->
+  <!--萌娘：https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json-->
+  <!--小可爱（女）：https://unpkg.com/live2d-widget-model-koharu@1.0.5/assets/koharu.model.json-->
+  <!--小可爱（男）：https://unpkg.com/live2d-widget-model-haruto@1.0.5/assets/haruto.model.json-->
+  <!--初音：https://unpkg.com/live2d-widget-model-miku@1.0.5/assets/miku.model.json-->
+   <!-- 上边的不一样连接显示的是不一样的小人，这个能够根据须要来选择 下边的初始化部分，能够修改宽高来修改小人的大小，或者是鼠标移动到小人上的透明度，也能够修改小人在页面出现的位置。 -->
+  <script>
+    /*https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json*/
+    L2Dwidget.init({ "model": { jsonPath:
+          "https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json",
+        "scale": 1 }, "display": { "position": "right", "width": 220, "height": 300,
+        "hOffset": 0, "vOffset": -20 }, "mobile": { "show": true, "scale": 0.5 },
+      "react": { "opacityDefault": 0.8, "opacityOnHover": 0.1 } });
+  </script>
+  <a class="rss" href="https://dongdongguang.github.io/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>
